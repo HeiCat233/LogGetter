@@ -1,0 +1,77 @@
+{
+ "outside（卫星桌）": {
+  "total": 4939,
+  "removed": 2989,
+  "filteredBytes": 358513
+ },
+ "outside（篝火）": {
+  "total": 4939,
+  "removed": 2989,
+  "filteredBytes": 358513
+ },
+ "信噪比（卫星基地）": {
+  "total": 4493,
+  "removed": 2824,
+  "filteredBytes": 291185
+ },
+ "凯克洛斯流行许愿术": {
+  "total": 992,
+  "removed": 535,
+  "filteredBytes": 101295
+ },
+ "勿忘我（野团）": {
+  "total": 4186,
+  "removed": 2639,
+  "filteredBytes": 325378
+ },
+ "厕所已满": {
+  "total": 27,
+  "removed": 2,
+  "filteredBytes": 1954
+ },
+ "封冻恶疾": {
+  "total": 9010,
+  "removed": 3598,
+  "filteredBytes": 1071394
+ },
+ "封冻恶疾0": {
+  "total": 3773,
+  "removed": 2404,
+  "filteredBytes": 292706
+ },
+ "是谁杀死了蒙娜丽莎": {
+  "total": 1222,
+  "removed": 527,
+  "filteredBytes": 125744
+ },
+ "疗养院": {
+  "total": 2725,
+  "removed": 1210,
+  "filteredBytes": 311182
+ },
+ "稚林期（卫星桌）": {
+  "total": 3487,
+  "removed": 2106,
+  "filteredBytes": 306453
+ },
+ "稚林期（篝火）": {
+  "total": 3594,
+  "removed": 2269,
+  "filteredBytes": 220815
+ },
+ "送快递（七七）": {
+  "total": 1656,
+  "removed": 928,
+  "filteredBytes": 135298
+ },
+ "风之城": {
+  "total": 4355,
+  "removed": 2306,
+  "filteredBytes": 347365
+ },
+ "根目录封冻恶疾": {
+  "total": 9010,
+  "removed": 3598,
+  "filteredBytes": 1071394
+ }
+}

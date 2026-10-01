@@ -1,0 +1,28 @@
+{
+  "name": "loggetter-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "跑团日志提取与排版 Web 服务",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start:dev": "ts-node src/main.ts",
+    "start:prod": "node dist/server/src/main.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.2",
+    "@nestjs/core": "^11.0.2",
+    "@nestjs/platform-express": "^11.0.2",
+    "@nestjs/serve-static": "^5.0.3",
+    "multer": "^2.0.1",
+    "playwright": "1.63.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}

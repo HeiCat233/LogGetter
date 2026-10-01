@@ -6,6 +6,13 @@ __pycache__/
 # IDE
 .idea/
 
+# Node
+server/node_modules/
+webui/node_modules/
+server/dist/
+server/public/
+*.log
+
 # 跑团日志数据不入本仓库（日志在 D:\跑团 备份仓库里），团目录内容与散落 log 文件全部排除
 *（未处理）*
 *（不含场外）*
