@@ -1,11 +1,11 @@
 
 import {
-  Body, Controller, Get, Post, Put, UploadedFile, UseInterceptors, Query,
+  Body, Controller, Get, Post, Put, Res, UploadedFile, UseInterceptors, Query,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { LibraryService } from './library.service';
-import { LayoutDoc, LogMessage } from '../../../shared/types';
+import { LayoutDoc } from '../../../shared/types';
 
 @Controller()
 export class LibraryController {
@@ -21,12 +21,12 @@ export class LibraryController {
     return this.library.readTxt(relPath);
   }
 
-  @Put('log-file')
-  writeTxt(
-    @Body() body: { path: string; messages: LogMessage[]; spaced: boolean; strayLines: string[] },
-  ) {
-    this.library.writeTxt(body.path, body.messages, body.spaced, body.strayLines ?? []);
-    return { ok: true };
+  @Get('asset')
+  asset(@Query('path') relPath: string, @Res() res: Response) {
+    const { buffer, contentType } = this.library.readAsset(relPath);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(buffer);
   }
 
   @Get('layout')

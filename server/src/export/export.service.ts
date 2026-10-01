@@ -8,9 +8,23 @@ import { CONFIG } from '../config';
 export class ExportService {
   constructor(private readonly library: LibraryService) {}
 
+  /** 把排版资产（.layout 下的本地图片）转成 base64 内嵌，导出单文件自包含；外链 URL 保持原样 */
+  private inlineLocalImages(html: string): string {
+    return html.replace(/(src=")\/api\/asset\?path=([^"]+)(")/g, (_all, pre, encoded: string, post) => {
+      try {
+        const relPath = decodeURIComponent(encoded);
+        const { buffer, contentType } = this.library.readAsset(relPath);
+        return `${pre}data:${contentType};base64,${buffer.toString('base64')}${post}`;
+      } catch {
+        return _all;
+      }
+    });
+  }
+
   private build(dirRel: string, includeOutside: boolean) {
     const layout = this.library.readLayout(dirRel);
-    const html = renderFullHtml(layout, { includeOutside });
+    const raw = renderFullHtml(layout, { includeOutside });
+    const html = this.inlineLocalImages(raw);
     const name = layout.title || dirRel.split(/[\\/]/).pop() || 'log';
     return { html, name };
   }

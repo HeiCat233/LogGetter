@@ -4,7 +4,7 @@ import * as path from 'path';
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { CONFIG } from '../config';
 import { syncPaotuanRepo } from '../git-sync';
-import { parseLogText, serializeLogText } from '../../../shared/log-parser';
+import { parseLogText } from '../../../shared/log-parser';
 import { LayoutDoc, LogMessage } from '../../../shared/types';
 
 export interface TreeNode {
@@ -29,19 +29,22 @@ export class LibraryService {
     return abs;
   }
 
-  private layoutFileFor(dirAbs: string): string {
-    const dirName = path.basename(dirAbs);
-    return path.join(dirAbs, `${dirName}.layout.json`);
+  /** 排版数据独立根：<库根>/.layout/<团相对路径>/（原始团目录保持只读，不受排版影响） */
+  layoutDirFor(dirRel: string): string {
+    return path.join(CONFIG.libraryRoot, '.layout', dirRel);
   }
 
-  /** 两层目录树：库根下的目录（递归到团目录层），带排版状态 */
+  private layoutFileFor(dirRel: string): string {
+    return path.join(this.layoutDirFor(dirRel), 'layout.json');
+  }
+
+  /** 两层目录树：库根下的目录（递归到团目录层），带排版状态（读独立 .layout 目录） */
   tree(maxDepth = 4): TreeNode {
     const build = (abs: string, rel: string, depth: number): TreeNode => {
       const node: TreeNode = { name: path.basename(abs), relPath: rel, type: 'dir' };
       const entries = fs.readdirSync(abs, { withFileTypes: true });
       const children: TreeNode[] = [];
       let hasTxt = false;
-      let layoutStatus: TreeNode['layoutStatus'] = undefined;
 
       for (const e of entries) {
         if (e.name.startsWith('.') || e.name.startsWith('~$')) continue;
@@ -55,7 +58,8 @@ export class LibraryService {
         }
       }
 
-      const layoutFile = this.layoutFileFor(abs);
+      const layoutFile = this.layoutFileFor(rel);
+      let layoutStatus: TreeNode['layoutStatus'] = undefined;
       if (fs.existsSync(layoutFile)) {
         try {
           const layout = JSON.parse(fs.readFileSync(layoutFile, 'utf-8')) as LayoutDoc;
@@ -81,55 +85,64 @@ export class LibraryService {
   }
 
   writeTxt(relPath: string, messages: LogMessage[], spaced: boolean, strayLines: string[]) {
-    const abs = this.resolveSafe(relPath);
-    fs.writeFileSync(abs, serializeLogText(messages, spaced, strayLines), 'utf-8');
+    // 原始 log 文件保持只读——该接口不再被排版保存调用，仅保留给将来的显式用途
+    void messages;
+    void spaced;
+    void strayLines;
+    throw new BadRequestException('原始 log 文件为只读存档，排版内容请保存在排版文档中');
   }
 
   readLayout(dirRel: string): LayoutDoc {
-    const dirAbs = this.resolveSafe(dirRel);
-    const layoutFile = this.layoutFileFor(dirAbs);
+    const layoutFile = this.layoutFileFor(dirRel);
     if (fs.existsSync(layoutFile)) {
       return JSON.parse(fs.readFileSync(layoutFile, 'utf-8')) as LayoutDoc;
     }
-    // 不存在则从 txt 初始化默认排版文档
-    const txtRel = path.join(dirRel, `${path.basename(dirAbs)}（未处理）.txt`);
+    // 不存在则从 txt 初始化默认排版文档（只读原始文件，不写回）
+    this.resolveSafe(dirRel);
+    const dirName = path.basename(dirRel);
+    const txtRel = path.join(dirRel, `${dirName}（未处理）.txt`);
     const { messages } = this.readTxt(txtRel);
     return {
       schemaVersion: 1,
       status: 'draft',
-      title: path.basename(dirAbs),
+      title: dirName,
       theme: 'painter',
       blocks: [
-        { type: 'cover', fields: { title: path.basename(dirAbs) } },
+        { type: 'cover', fields: { title: dirName } },
         ...messages.map((m) => ({ type: 'message' as const, message: m })),
       ],
     };
   }
 
   writeLayout(dirRel: string, layout: LayoutDoc): { sync: { ok: boolean; detail: string } } {
-    const dirAbs = this.resolveSafe(dirRel);
-    fs.writeFileSync(this.layoutFileFor(dirAbs), JSON.stringify(layout, null, 1), 'utf-8');
-    // 排版文档变化时把消息源同步回写（编辑器里对消息的修改反映到 txt，保持单一来源兼容）
-    const msgBlocks = layout.blocks.filter((b) => b.type === 'message');
-    const messages = msgBlocks.map((b) => (b as { type: 'message'; message: LogMessage }).message);
-    const txtAbs = path.join(dirAbs, `${path.basename(dirAbs)}（未处理）.txt`);
-    if (fs.existsSync(txtAbs)) {
-      const { spaced, strayLines } = parseLogText(fs.readFileSync(txtAbs, 'utf-8'));
-      fs.writeFileSync(txtAbs, serializeLogText(messages, spaced, strayLines), 'utf-8');
-    }
-    // 保存（用户显式动作）时同步跑团备份仓库，失败仅返回警告
+    // 只写独立排版目录，绝不触碰原始团目录
+    const layoutFile = this.layoutFileFor(dirRel);
+    fs.mkdirSync(path.dirname(layoutFile), { recursive: true });
+    fs.writeFileSync(layoutFile, JSON.stringify(layout, null, 1), 'utf-8');
     const rel = path.relative(CONFIG.paotuanRepo, CONFIG.libraryRoot);
-    const sync = syncPaotuanRepo(`排版更新: ${layout.title || path.basename(dirAbs)}`, rel);
+    const sync = syncPaotuanRepo(`排版更新: ${layout.title || path.basename(dirRel)}`, rel);
     return { sync };
   }
 
+  /** 图片等排版资产：存到 .layout/<团>/assets/，返回库内相对路径 */
   saveUpload(dirRel: string, filename: string, buffer: Buffer): string {
-    const dirAbs = this.resolveSafe(dirRel);
-    const assetsDir = path.join(dirAbs, 'assets');
+    const assetsDir = path.join(this.layoutDirFor(dirRel), 'assets');
     fs.mkdirSync(assetsDir, { recursive: true });
     const safeName = `${Date.now()}-${filename.replace(/[^\w.\-\u4e00-\u9fa5]/g, '_')}`;
     const relPath = path.join(path.relative(CONFIG.libraryRoot, assetsDir), safeName);
     fs.writeFileSync(path.join(assetsDir, safeName), buffer);
     return relPath.replace(/\\/g, '/');
+  }
+
+  /** 读取库内资产文件流（白名单） */
+  readAsset(relPath: string): { buffer: Buffer; contentType: string } {
+    const abs = this.resolveSafe(relPath);
+    if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) throw new NotFoundException('文件不存在');
+    const ext = path.extname(abs).toLowerCase();
+    const types: Record<string, string> = {
+      '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
+      '.webp': 'image/webp', '.svg': 'image/svg+xml', '.bmp': 'image/bmp',
+    };
+    return { buffer: fs.readFileSync(abs), contentType: types[ext] ?? 'application/octet-stream' };
   }
 }
